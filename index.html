@@ -355,6 +355,11 @@ select.in{appearance:auto}
 .row{padding:12px 14px;margin-bottom:8px}
 .card{padding:20px}
 .home{gap:14px}
+
+.ckb{flex:none!important;padding:9px 8px 9px 4px!important}
+.liin{flex:1;min-width:0;border:0;background:none;padding:9px 4px;outline:0;border-radius:8px}
+.liin:focus{background:var(--bg)}
+.pk.d .liin{text-decoration:line-through;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -465,7 +470,7 @@ function loadLocal(){try{const j=localStorage.getItem('mappe.v1');return j?norma
 function saveLocal(){try{localStorage.setItem('mappe.v1',JSON.stringify(S))}catch(e){}}
 
 let remote=null,sync='local',saveTimer=null;
-function persist(){S.updated=Date.now();saveLocal();clearTimeout(saveTimer);saveTimer=setTimeout(pushRemote,900)}
+function persist(){S.updated=Date.now();if(typeof gcalSoon==='function')gcalSoon();saveLocal();clearTimeout(saveTimer);saveTimer=setTimeout(pushRemote,900)}
 async function pushRemote(){
   if(!remote)return;
   try{await remote.set({json:JSON.stringify(S),updated:S.updated||Date.now()});setSync('cloud')}catch(e){setSync('local')}
@@ -552,7 +557,7 @@ function renderCapPrev(){
   if(!s){box.hidden=true;box.innerHTML='';return}
   const {p,type,cat}=s;
   const opts=['<option value="">Ohne Kategorie</option>'].concat(S.cats.filter(c=>c.on).map(c=>`<option value="${esc(c.id)}"${c.id===cat?' selected':''}>${esc(c.name)}</option>`)).join('');
-  const when=type==='note'?'':(p.date?`<span class="pill">${esc(fmtShort(p.date))}${type==='event'&&p.time?' · '+esc(p.time)+(p.endT?'–'+esc(p.endT):''):''}</span>`:(type==='task'?'<span class="pill" style="--c:#64748B">ohne Datum</span>':''));
+  const when=type==='note'?'':(p.date?`<span class="pill">${esc(fmtShort(p.date))}${type==='event'&&p.time?' · '+esc(p.time)+(p.endT?'–'+esc(p.endT):''):''}</span>`:(type==='task'?'<span class="pill" style="--c:#64748B">allgemein</span>':''));
   box.hidden=false;
   box.innerHTML=`<div class="seg">${['note','task','event'].map(k=>`<button data-action="capType" data-v="${k}" class="${type===k?'on':''}">${TYPE_LABEL[k]}</button>`).join('')}</div>${when}<span class="pill" style="--c:${esc(catColor(cat)||'#64748B')}"><select id="capCat" aria-label="Kategorie">${opts}</select></span>${p.tags.map(t=>`<span class="pill" style="--c:#64748B">#${esc(t)}</span>`).join('')}`;
 }
@@ -562,7 +567,7 @@ function capAdd(){
   let msg;
   if(type==='note'){S.notes.push({id:uid(),title,body:'',type:'text',items:[],cat,tags:p.tags,pinned:false,created:n,updated:n});msg='Notiz gespeichert'}
   else if(type==='task'){S.tasks.push({id:uid(),title,cat,tags:p.tags,remind:'',due:p.date,prio:0,done:false,note:'',repeat:p.rep||'none',every:1,subs:[]});msg='Aufgabe gespeichert'+(p.date?' für '+fmtShort(p.date):'')}
-  else{S.events.push({id:uid(),title,cat,tags:p.tags,remind:'',date:p.date||today(),end:'',start:p.time,endT:p.endT,allDay:!p.time,repeat:p.rep||'none',until:'',place:'',note:''});msg='Termin im Kalender: '+fmtShort(p.date||today())+(p.time?' um '+p.time:'')}
+  else{S.events.push({id:uid(),gnew:true,title,cat,tags:p.tags,remind:'',date:p.date||today(),end:'',start:p.time,endT:p.endT,allDay:!p.time,repeat:p.rep||'none',until:'',place:'',note:''});msg='Termin im Kalender: '+fmtShort(p.date||today())+(p.time?' um '+p.time:'')}
   $('#cap').value='';cap={};renderCapPrev();persist();render();toast(msg);
 }
 
@@ -702,7 +707,7 @@ function renderSheet(){
       else f+=`<div class="fld"><span class="lbl">Punkte</span><div id="lis">${d.items.map((i,ix)=>`<div class="lirow li"><input type="checkbox" aria-label="Erledigt"${i.d?' checked':''}><input class="in" type="text" value="${esc(i.t)}" placeholder="Punkt" data-ix="${ix}"><button type="button" class="eye" data-action="rmItem" data-ix="${ix}" aria-label="Punkt entfernen">✕</button></div>`).join('')}</div><button type="button" class="btn sm" style="align-self:flex-start" data-action="addItem">${ic('plus','style="width:16px;height:16px"')}Punkt hinzufügen</button></div>`;
       f+=`<div class="fld"><label for="f-cat">Kategorie</label>${catSelect(d.cat)}</div>${mre((d.tags||[]).length||arr(d.links).length||d.pinned,tagField(d)+`<label class="chk"><input id="f-pin" type="checkbox"${d.pinned?' checked':''}>Oben anpinnen</label>`)}`;
     }else if(k==='task'){
-      f+=`<div class="two"><div class="fld"><label for="f-due">Fällig am</label><input id="f-due" type="date" value="${esc(d.due)}"></div><div class="fld"><label for="f-prio">Priorität</label><select id="f-prio">${[[0,'Normal'],[1,'Mittel'],[2,'Wichtig']].map(([v,l])=>`<option value="${v}"${d.prio===v?' selected':''}>${l}</option>`).join('')}</select></div></div>
+      f+=`<div class="two"><div class="fld"><label for="f-due">Fällig am (leer = allgemein)</label><input id="f-due" type="date" value="${esc(d.due)}"></div><div class="fld"><label for="f-prio">Priorität</label><select id="f-prio">${[[0,'Normal'],[1,'Mittel'],[2,'Wichtig']].map(([v,l])=>`<option value="${v}"${d.prio===v?' selected':''}>${l}</option>`).join('')}</select></div></div>
       <div class="fld"><label for="f-cat">Kategorie</label>${catSelect(d.cat)}</div>${mre(d.remind||(d.repeat&&d.repeat!=='none')||(d.subs||[]).length||(d.tags||[]).length||arr(d.links).length||d.note,remindField(d,'task')+taskExtra(d)+tagField(d)+`<div class="fld"><label for="f-note">Notiz</label><textarea id="f-note" style="min-height:80px">${esc(d.note)}</textarea></div>`)}`;
     }else{
       f+=`<label class="chk"><input id="f-all" type="checkbox"${d.allDay?' checked':''} data-action="allDay">Ganztägig</label>
@@ -760,6 +765,7 @@ function saveEdit(){
     if(k==='task'&&d.done===undefined)d.done=false;
   }
   const coll=collOf(k),ix=coll.findIndex(x=>x.id===d.id);
+  if(k==='event'){if(d.gid)d.gdirty=true;else if(ix<0)d.gnew=true}
   if(ix>=0)coll[ix]=d;else coll.push(d);
   ui.edit=null;persist();renderSheet();render();toast('Gespeichert');
 }
@@ -768,6 +774,7 @@ function trashIt(kind,it){S.trash.push({id:uid(),kind,it,at:Date.now()})}
 function delItem(){
   const e=ui.edit,coll=collOf(e.kind),ix=coll.findIndex(x=>x.id===e.id);if(ix<0)return;
   const it=coll.splice(ix,1)[0];trashIt(e.kind,it);undo={kind:e.kind,it};
+  if(e.kind==='event'&&it.gid)S.gdel.push({gid:it.gid,cal:it.gcal});
   if(e.kind==='trip'&&ui.trip===it.id)ui.trip=null;
   ui.edit=null;persist();renderSheet();render();toast('Gelöscht',true);
 }
@@ -802,7 +809,7 @@ const A={
   allDay(){formToDraft();renderSheet()},
   rep(){formToDraft();renderSheet()},
   delItem,
-  undo(){if(!undo)return;collOf(undo.kind).push(undo.it);S.trash=S.trash.filter(x=>x.it!==undo.it);undo=null;persist();render();$('#toast').hidden=true},
+  undo(){if(!undo)return;collOf(undo.kind).push(undo.it);S.trash=S.trash.filter(x=>x.it!==undo.it);S.gdel=S.gdel.filter(x=>x.gid!==undo.it.gid);undo=null;persist();render();$('#toast').hidden=true},
   selDay(el){ui.sel=el.dataset.date;if(ui.sel.slice(0,7)!==ui.calMonth.slice(0,7))ui.calMonth=ui.sel.slice(0,8)+'01';render()},
   calPrev(){if(ui.calMode==='week')ui.weekStart=addDays(ui.weekStart,-7);else{const d=fromYmd(ui.calMonth);d.setMonth(d.getMonth()-1);ui.calMonth=ymd(d)}render()},
   calNext(){if(ui.calMode==='week')ui.weekStart=addDays(ui.weekStart,7);else{const d=fromYmd(ui.calMonth);d.setMonth(d.getMonth()+1);ui.calMonth=ymd(d)}render()},
@@ -825,7 +832,7 @@ const A={
   icsExport,
   drive(){ui.edit={kind:'drive'};ui.drive={};renderSheet()},
   driveBackup,driveLoad,driveRestore,
-  clearDemo(){['notes','tasks','events','habits','trips','people','docs','expenses'].forEach(k=>S[k]=S[k].filter(x=>!x.demo));persist();render();toast('Beispieleinträge gelöscht')}
+  clearDemo(){['notes','tasks','events','habits','trips','people','docs','expenses','lists'].forEach(k=>S[k]=S[k].filter(x=>!x.demo));persist();render();toast('Beispieleinträge gelöscht')}
 };
 document.addEventListener('click',e=>{
   const el=e.target.closest('[data-action]');if(!el)return;
@@ -1036,6 +1043,7 @@ function driveRestore(){
 
 /* ===== Teil 1: Module, Datenmodell, Navigation, Startseite ===== */
 Object.assign(ICON,{
+ list:'<path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/>',
  habit:'<path d="M4 12a8 8 0 018-8 8 8 0 016.9 4M20 12a8 8 0 01-8 8 8 8 0 01-6.9-4"/><path d="M19 4v4h-4M5 20v-4h4"/><path d="M9.5 12.5l2 2 3.5-4"/>',
  shift:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
  plane:'<path d="M3 12.5l18-8.5-6.5 17-3-7.5z"/><path d="M11.5 13.5L21 4"/>',
@@ -1060,9 +1068,10 @@ const obj=x=>x&&typeof x==='object'&&!Array.isArray(x)?x:{};
 const eur=n=>new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR'}).format(n||0);
 const MODS=[
  {k:'today',l:'Heute',i:'today',g:'Planen'},{k:'cal',l:'Kalender',i:'cal',g:'Planen'},{k:'tasks',l:'Aufgaben',i:'tasks',g:'Planen'},{k:'notes',l:'Notizen',i:'notes',g:'Planen'},
+ {k:'lists',l:'Listen',i:'list',g:'Alltag',opt:1,c:'#2E9BF0'},
  {k:'habits',l:'Gewohnheiten',i:'habit',g:'Alltag',opt:1,c:'#2BB673'},
  {k:'shifts',l:'Dienstplan',i:'shift',g:'Alltag',opt:1,c:'#2E9BF0'},
- {k:'trips',l:'Reisen',i:'plane',g:'Alltag',opt:1,c:'#FF8A3D'},
+ {k:'trips',l:'Urlaub',i:'plane',g:'Alltag',opt:1,c:'#FF8A3D'},
  {k:'people',l:'Geburtstage',i:'gift',g:'Alltag',opt:1,c:'#E056C1'},
  {k:'money',l:'Budget',i:'wallet',g:'Alltag',opt:1,c:'#14B8A6'},
  {k:'docs',l:'Dokumente',i:'doc',g:'Alltag',opt:1,c:'#F5B700'},
@@ -1070,13 +1079,13 @@ const MODS=[
  {k:'focus',l:'Fokus',i:'timer',g:'Fokus',opt:1,c:'#F2557A'},
  {k:'review',l:'Rückblick',i:'chart',g:'Fokus',opt:1,c:'#5B4CF0'}
 ];
-const HOME_DEF=[['tiles','Kennzahlen'],['today','Heute'],['over','Überfällig'],['shift','Dienst'],['habits','Gewohnheiten'],['week','Nächste 7 Tage'],['bdays','Geburtstage'],['deadlines','Fristen'],['pinned','Angepinnt'],['goals','Wochenziele']];
+const HOME_DEF=[['tiles','Kennzahlen'],['today','Heute'],['over','Überfällig'],['general','Allgemeine Aufgaben'],['shift','Dienst'],['habits','Gewohnheiten'],['week','Nächste 7 Tage'],['bdays','Geburtstage'],['deadlines','Fristen'],['pinned','Angepinnt'],['goals','Wochenziele']];
 const modOn=k=>{const m=MODS.find(x=>x.k===k);return !m||!m.opt||(S.settings.mods||{})[k]!==false};
 
 function normalize(r){
   r=r&&typeof r==='object'?r:{};
   const o={v:1,updated:r.updated||0,settings:Object.assign({theme:'auto'},obj(r.settings)),cats:arr(r.cats),events:arr(r.events),tasks:arr(r.tasks),notes:arr(r.notes),
-    habits:arr(r.habits),shiftTypes:arr(r.shiftTypes),shifts:obj(r.shifts),trips:arr(r.trips),people:arr(r.people),expenses:arr(r.expenses),docs:arr(r.docs),
+    habits:arr(r.habits),lists:arr(r.lists),gdel:arr(r.gdel),shiftTypes:arr(r.shiftTypes),shifts:obj(r.shifts),trips:arr(r.trips),people:arr(r.people),expenses:arr(r.expenses),docs:arr(r.docs),
     journal:obj(r.journal),focus:arr(r.focus),goals:obj(r.goals),trash:arr(r.trash),doneLog:arr(r.doneLog)};
   return ensureDefaults(o);
 }
@@ -1084,9 +1093,11 @@ function ensureDefaults(o){
   const st=o.settings;
   st.mods=obj(st.mods);MODS.filter(m=>m.opt).forEach(m=>{if(st.mods[m.k]===undefined)st.mods[m.k]=true});
   if(!Array.isArray(st.home))st.home=HOME_DEF.map(([k])=>({k,on:true}));
-  HOME_DEF.forEach(([k])=>{if(!st.home.some(h=>h.k===k))st.home.push({k,on:true})});
+  HOME_DEF.forEach(([k],i)=>{if(!st.home.some(h=>h.k===k)){const o=st.home.findIndex(h=>h.k==='over');st.home.splice(k==='general'&&o>=0?o+1:st.home.length,0,{k,on:true})}});
   if(!st.shiftSeed){if(!o.shiftTypes.length)o.shiftTypes=defaultShiftTypes();st.shiftSeed=true}
   if(!st.modSeed){seedModules(o);st.modSeed=true}
+  if(!st.mig1){o.notes=o.notes.filter(n=>!(n.demo&&n.title==='Packliste Italien'));o.events=o.events.filter(e=>!(e.demo&&e.title==='Sommerurlaub Italien'));st.mig1=true}
+  if(!st.listSeed){seedLists(o);st.listSeed=true}
   o.trash=o.trash.filter(x=>x&&x.it&&Date.now()-x.at<30*864e5);
   if(o.doneLog.length>2500)o.doneLog=o.doneLog.slice(-2000);
   return o;
@@ -1178,6 +1189,11 @@ function homeBlock0(k,c){
   }
   if(k==='today')return card('Heute',todayItems.length?todayItems.map(x=>itemRow(x)).join(''):'<div class="empty">Für heute ist nichts geplant.</div>');
   if(k==='over')return over.length?card('Überfällig',over.map(t=>itemRow(taskItem(t),{date:true})).join('')):'';
+  if(k==='general'){
+    const g=S.tasks.filter(t=>!t.done&&!t.due&&vis(t)).sort((a,b)=>b.prio-a.prio);
+    if(!g.length)return '';
+    return `<div class="card"><h2>Allgemeine Aufgaben<small>${g.length} offen · ohne Datum</small></h2>${g.slice(0,6).map(t=>itemRow(taskItem(t),{subs:true})).join('')}${g.length>6?`<button class="btn sm" data-action="nav" data-v="tasks">Alle ${g.length} anzeigen</button>`:''}</div>`;
+  }
   if(k==='week'){let u='';for(let i=1;i<=7;i++){const d=addDays(td,i);if(map[d])u+=`<div class="daylbl">${esc(dayLabel(d))}</div>`+map[d].map(x=>itemRow(x)).join('')}return card('Nächste 7 Tage',u||'<div class="empty">In den nächsten 7 Tagen steht nichts an.</div>')}
   if(k==='pinned'){const p=S.notes.filter(n=>vis(n)&&n.pinned&&!n.archived);return p.length?card('Angepinnt',p.map(n=>`<button class="row" style="--c:${esc(catColor(n.cat))}" data-action="open" data-kind="note" data-id="${esc(n.id)}"><div class="tx"><div class="t">${esc(n.title)}</div><div class="s">${esc(catName(n.cat))||'&nbsp;'}</div></div></button>`).join('')):''}
   if(k==='shift'&&modOn('shifts'))return shiftHome(td);
@@ -1220,11 +1236,11 @@ function viewTasks(){
     body=d.length?d.map(t=>itemRow(taskItem(t),{date:!!t.due,subs:true})).join(''):'<div class="empty">Noch nichts erledigt.</div>';
   }else{
     const open=list.filter(t=>!t.done).sort((a,b)=>(a.due||'9').localeCompare(b.due||'9')||b.prio-a.prio);
-    const g=[['Überfällig',t=>t.due&&t.due<td,'over'],['Heute',t=>t.due===td,'today'],['Diese Woche',t=>t.due>td&&t.due<=addDays(td,7),''],['Später',t=>t.due>addDays(td,7),''],['Ohne Datum',t=>!t.due,'']];
-    g.forEach(([name,f,cls])=>{const items=open.filter(f);if(!items.length)return;const fold=['Später','Ohne Datum'].includes(name),o=!fold||(ui.grp||{})[name];body+=fold?`<button class="daylbl grpbtn" data-action="grpToggle" data-v="${name}">${ic(o?'down':'right','style="width:16px;height:16px"')}${name} · ${items.length}</button>`:`<div class="daylbl ${cls}">${name} · ${items.length}</div>`;if(o)body+=items.map(t=>itemRow(taskItem(t),{date:!!t.due,subs:true})).join('')});
+    const g=[['Überfällig',t=>t.due&&t.due<td,'over'],['Heute',t=>t.due===td,'today'],['Diese Woche',t=>t.due>td&&t.due<=addDays(td,7),''],['Allgemein',t=>!t.due,''],['Später',t=>t.due>addDays(td,7),'']];
+    g.forEach(([name,f,cls])=>{const items=open.filter(f);if(!items.length)return;const fold=['Später'].includes(name),o=!fold||(ui.grp||{})[name];body+=fold?`<button class="daylbl grpbtn" data-action="grpToggle" data-v="${name}">${ic(o?'down':'right','style="width:16px;height:16px"')}${name} · ${items.length}</button>`:`<div class="daylbl ${cls}">${name} · ${items.length}</div>`;if(o)body+=items.map(t=>itemRow(taskItem(t),{date:!!t.due,subs:true})).join('')});
     if(!body)body='<div class="empty">Alles erledigt.</div>';
   }
-  return `<div class="vh"><div><h1>Aufgaben</h1><p>Mit Wiederholung, Unteraufgaben und Datum im Kalender.</p></div><div style="display:flex;gap:10px;flex-wrap:wrap">${seg}<button class="btn primary" data-action="new" data-kind="task">${ic('plus')}Neue Aufgabe</button></div></div><div class="card">${body}</div>`;
+  return `<div class="vh"><div><h1>Aufgaben</h1><p>Mit Datum im Kalender, oder allgemein ohne Datum.</p></div><div style="display:flex;gap:10px;flex-wrap:wrap">${seg}<button class="btn primary" data-action="new" data-kind="task">${ic('plus')}Neue Aufgabe</button></div></div><div class="card">${body}</div>`;
 }
 
 /* ---- Notizen mit Archiv ---- */
@@ -1239,7 +1255,6 @@ function viewNotes(){
   return `<div class="vh"><div><h1>Notizen</h1><p>Texte und Checklisten, nach Kategorie sortiert.</p></div>
   <div style="display:flex;gap:10px;flex-wrap:wrap"><label class="search">${ic('search')}<input id="q" type="text" placeholder="Notizen durchsuchen" value="${esc(ui.q)}"></label>
   <div class="seg"><button data-action="noteArch" data-v="" class="${ui.noteArch?'':'on'}">Aktiv</button><button data-action="noteArch" data-v="1" class="${ui.noteArch?'on':''}">Archiv</button></div>
-  <button class="btn" data-action="sheet" data-v="template">${ic('layers')}Vorlage</button>
   <button class="btn primary" data-action="new" data-kind="note">${ic('plus')}Neue Notiz</button></div></div>
   <div class="notes" id="notesGrid">${notesGrid()}</div>`;
 }
@@ -1280,6 +1295,7 @@ function hubSub(k){
   const td=today();
   if(k==='habits'){const h=habitsToday();return h.filter(x=>x.log[td]).length+' von '+h.length+' heute'}
   if(k==='shifts'){const id=S.shifts[td],ty=S.shiftTypes.find(x=>x.id===id);return ty?'Heute: '+ty.name:'Heute kein Eintrag'}
+  if(k==='lists')return S.lists.length+' Listen';
   if(k==='trips'){const n=S.trips.filter(t=>t.from>=td).sort((a,b)=>a.from.localeCompare(b.from))[0];return n?n.name+' in '+daysBetween(td,n.from)+' Tagen':'Noch keine Reise'}
   if(k==='people'){const n=nextBdays(1)[0];return n?n.p.name+' in '+n.in+' Tagen':'Noch keine Geburtstage'}
   if(k==='money'){return eur(monthSums(td.slice(0,7)).out)+' diesen Monat'}
@@ -1314,7 +1330,7 @@ function viewSettings(){
   return `<div class="vh"><div><h1>Einstellungen</h1><p>Mach die App zu deiner.</p></div></div><div class="grid2"><div class="stack">
   <div class="card"><h2>Darstellung</h2><div class="seg">${[['auto','Automatisch'],['light','Hell'],['dark','Dunkel']].map(([k,l])=>`<button data-action="theme" data-v="${k}" class="${th===k?'on':''}">${l}</button>`).join('')}</div></div>
   <div class="card"><h2>Bereiche</h2><p class="hint">Schalte aus, was du nicht brauchst. Die Daten bleiben erhalten.</p><div class="cats">${MODS.filter(m=>m.opt).map(m=>`<div class="catrow${modOn(m.k)?'':' off'}" style="--c:${m.c}"><div class="nm">${m.l}</div><button class="sw${modOn(m.k)?' on':''}" role="switch" aria-checked="${modOn(m.k)}" aria-label="${m.l} anzeigen" data-action="modToggle" data-v="${m.k}"></button></div>`).join('')}</div></div>
-  <div class="card"><h2>Daten</h2><p class="hint" id="syncnote2">${esc(syncText())}</p><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-action="drive">Google Drive</button><button class="btn" data-action="ics">Kalender importieren / exportieren</button><button class="btn" data-action="backup">Sicherung anzeigen</button><button class="btn" data-action="sheet" data-v="trash">Papierkorb (${S.trash.length})</button>${hasDemo?'<button class="btn" data-action="clearDemo">Beispieleinträge löschen</button>':''}</div></div>
+  <div class="card"><h2>Daten</h2><p class="hint" id="syncnote2">${esc(syncText())}</p><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-action="gcalOpen">Google Kalender</button><button class="btn" data-action="drive">Google Drive</button><button class="btn" data-action="ics">Kalender importieren / exportieren</button><button class="btn" data-action="backup">Sicherung anzeigen</button><button class="btn" data-action="sheet" data-v="trash">Papierkorb (${S.trash.length})</button>${hasDemo?'<button class="btn" data-action="clearDemo">Beispieleinträge löschen</button>':''}</div></div>
   </div><div class="stack">
   <div class="card"><h2>Startseite</h2><p class="hint">Wähle die Blöcke und ihre Reihenfolge.</p><div class="cats">${home.map((h,i)=>`<div class="catrow${h.on?'':' off'}" style="--c:var(--accent)"><div class="nm">${esc((HOME_DEF.find(x=>x[0]===h.k)||[0,h.k])[1])}</div><button class="iconbtn" data-action="homeMove" data-ix="${i}" data-d="-1" aria-label="Nach oben">${ic('up')}</button><button class="iconbtn" data-action="homeMove" data-ix="${i}" data-d="1" aria-label="Nach unten">${ic('down')}</button><button class="sw${h.on?' on':''}" role="switch" aria-checked="${h.on}" aria-label="Anzeigen" data-action="homeToggle" data-ix="${i}"></button></div>`).join('')}</div></div>
   <div class="card"><h2>Diktat</h2><p class="hint">Das Mikrofon in der App steht nur in Chromium-Browsern und der Claude-Desktop-App bereit. Auf dem iPhone nutzt du das Mikrofon deiner Tastatur in jedem Textfeld.</p></div>
@@ -1623,12 +1639,12 @@ function viewTrips(){
   const card=t=>{const p=packProg(t),pc=p.n?Math.round(p.d/p.n*100):0,c=t.cat?catColor(t.cat):'#FF8A3D';
     const when=t.from?(t.from>td?'in '+daysBetween(td,t.from)+' Tagen':(!t.to||t.to>=td)?'läuft gerade':'vorbei'):'ohne Datum';
     return `<button class="card trip" style="--c:${esc(c)}" data-action="tripOpen" data-id="${esc(t.id)}"><div class="tph"><b>${esc(t.name)}</b><span class="pill" style="--c:${esc(c)}">${esc(when)}</span></div><small>${esc([t.dest,t.from?fmtShort(t.from)+(t.to&&t.to!==t.from?' – '+fmtShort(t.to):''):''].filter(Boolean).join(' · '))}</small><div class="bar"><i style="width:${pc}%"></i></div><small>Packliste ${p.d}/${p.n}${t.budget?' · '+eur(tripSpent(t))+' von '+eur(t.budget):''}</small></button>`};
-  return `<div class="vh"><div><h1>Reisen</h1><p>Packliste, Programm, Buchungen und Kosten pro Reise.</p></div><button class="btn primary" data-action="newEnt" data-kind="trip">${ic('plus')}Neue Reise</button></div><div class="tripgrid">${list.map(card).join('')||'<div class="empty" style="grid-column:1/-1">Noch keine Reise geplant.</div>'}</div>`;
+  return `<div class="vh"><div><h1>Urlaub</h1><p>Packliste, Programm, Buchungen und Kosten pro Reise.</p></div><button class="btn primary" data-action="newEnt" data-kind="trip">${ic('plus')}Neuer Urlaub</button></div><div class="tripgrid">${list.map(card).join('')||'<div class="empty" style="grid-column:1/-1">Noch kein Urlaub geplant.</div>'}</div>`;
 }
 function viewTrip(t){
   const tabs=[['pack','Packliste'],['plan','Programm'],['book','Buchungen'],['cost','Kosten'],['info','Infos']];
   const c=t.cat?catColor(t.cat):'#FF8A3D',p=packProg(t),td=today();
-  const head=`<div class="vh"><div><button class="btn sm ghost" data-action="tripBack" style="padding-left:0">${ic('left','style="width:16px;height:16px"')}Alle Reisen</button><h1>${esc(t.name)}</h1><p>${esc([t.dest,t.from?fmtShort(t.from)+(t.to&&t.to!==t.from?' – '+fmtShort(t.to):''):'',t.from&&t.from>td?'in '+daysBetween(td,t.from)+' Tagen':''].filter(Boolean).join(' · '))}</p></div><button class="btn" data-action="openEnt" data-kind="trip" data-id="${esc(t.id)}">Bearbeiten</button></div>
+  const head=`<div class="vh"><div><button class="btn sm ghost" data-action="tripBack" style="padding-left:0">${ic('left','style="width:16px;height:16px"')}Alle Urlaube</button><h1>${esc(t.name)}</h1><p>${esc([t.dest,t.from?fmtShort(t.from)+(t.to&&t.to!==t.from?' – '+fmtShort(t.to):''):'',t.from&&t.from>td?'in '+daysBetween(td,t.from)+' Tagen':''].filter(Boolean).join(' · '))}</p></div><button class="btn" data-action="openEnt" data-kind="trip" data-id="${esc(t.id)}">Bearbeiten</button></div>
   <div class="seg tabs">${tabs.map(([k,l])=>`<button data-action="tripTab" data-v="${k}" class="${ui.tripTab===k?'on':''}">${l}</button>`).join('')}</div>`;
   let body='';
   if(ui.tripTab==='pack'){
@@ -1871,7 +1887,7 @@ const TPLS=[
  ['Dienstreise',['Reise genehmigen lassen','Zug oder Flug buchen','Hotel buchen','Termine bestätigen','Unterlagen und Laptop packen','Spesenbelege sammeln']],
  ['Monatsabschluss',['Kontoauszüge prüfen','Abos und Verträge kontrollieren','Belege sortieren','Nächsten Monat planen','Wochenziele festlegen']]
 ];
-SHEETS.template=()=>`<h2>Vorlagen</h2><p class="hint">Fertige Listen als Checkliste in Notizen oder als einzelne Aufgaben.</p><div class="cats">${TPLS.map((t,i)=>`<div class="catrow" style="--c:var(--accent)"><div class="nm">${esc(t[0])}<small>${t[1].length} Punkte</small></div><button class="btn sm" data-action="tplNote" data-ix="${i}">Notiz</button><button class="btn sm" data-action="tplTasks" data-ix="${i}">Aufgaben</button></div>`).join('')}</div><div class="actions"><span class="sp"></span><button class="btn primary" data-action="closeSheet">Schließen</button></div>`;
+SHEETS.template=()=>`<h2>Vorlagen</h2><p class="hint">Fertige Listen als eigene Liste oder als einzelne Aufgaben.</p><div class="cats">${TPLS.map((t,i)=>`<div class="catrow" style="--c:var(--accent)"><div class="nm">${esc(t[0])}<small>${t[1].length} Punkte</small></div><button class="btn sm" data-action="listFrom" data-ix="${i}">Liste</button><button class="btn sm" data-action="tplTasks" data-ix="${i}">Aufgaben</button></div>`).join('')}</div><div class="actions"><span class="sp"></span><button class="btn primary" data-action="closeSheet">Schließen</button></div>`;
 Object.assign(A,{
   tplNote(el){const t=TPLS[+el.dataset.ix],n=Date.now();S.notes.push({id:uid(),title:t[0],body:'',type:'list',items:t[1].map(x=>({t:x,d:false})),cat:ui.cat||'',tags:[],pinned:false,created:n,updated:n});ui.edit=null;persist();renderSheet();ui.view='notes';render();toast('Checkliste angelegt')},
   tplTasks(el){const t=TPLS[+el.dataset.ix];t[1].forEach(x=>S.tasks.push({id:uid(),title:x,cat:ui.cat||'',tags:[t[0].toLowerCase().replace(/\s+/g,'-')],remind:'',due:'',prio:0,done:false,note:'',subs:[],repeat:'none',every:1}));ui.edit=null;persist();renderSheet();ui.view='tasks';render();toast(t[1].length+' Aufgaben angelegt')}
@@ -1989,7 +2005,7 @@ A.magicRun=async()=>{
 A.magicApply=()=>{
   const l=(ui.magic.res||[]).filter(r=>r.on),n=Date.now();
   l.forEach(r=>{
-    if(r.type==='event')S.events.push({id:uid(),title:r.title,cat:r.cat,tags:[],remind:'',date:r.date,end:'',start:r.time,endT:r.endT,allDay:!r.time,repeat:'none',until:'',place:'',note:r.body});
+    if(r.type==='event')S.events.push({id:uid(),gnew:true,title:r.title,cat:r.cat,tags:[],remind:'',date:r.date,end:'',start:r.time,endT:r.endT,allDay:!r.time,repeat:'none',until:'',place:'',note:r.body});
     else if(r.type==='task')S.tasks.push({id:uid(),title:r.title,cat:r.cat,tags:[],remind:'',due:r.date,prio:0,done:false,note:r.body,subs:[],repeat:'none',every:1});
     else S.notes.push({id:uid(),title:r.title,body:r.body,type:'text',items:[],cat:r.cat,tags:[],pinned:false,created:n,updated:n});
   });
@@ -2007,8 +2023,237 @@ A.magicSum=async()=>{
 };
 A.magicSumSave=()=>{const m=ui.magic,n=Date.now();S.notes.push({id:uid(),title:m.sumTitle||'Zusammenfassung',body:m.sum,type:'text',items:[],cat:ui.cat||'',tags:[],pinned:false,created:n,updated:n});persist();render();toast('Als Notiz gespeichert')};
 
+/* ===== Teil 7: Listen (Einkauf, Packliste …) ===== */
+TPLS.unshift(['Einkaufsliste',['Obst und Gemüse','Brot','Milch und Joghurt','Käse und Aufschnitt','Nudeln und Reis','Getränke','Haushaltsartikel','Tiefkühlware']]);
+TPLS.splice(TPLS.findIndex(t=>t[0]==='Wocheneinkauf'),1);
+TPLS.push(['Packliste Kurztrip',['Personalausweis','Bankkarte und Bargeld','Handy und Ladekabel','Zahnbürste und Zahnpasta','Medikamente','Unterwäsche und Socken','Schlafsachen','Jacke']],
+ ['Haushalt (wöchentlich)',['Bad putzen','Staubsaugen','Wäsche waschen','Bettwäsche wechseln','Müll rausbringen','Pflanzen gießen','Kühlschrank prüfen']]);
+ENT.list={title:'Liste',coll:'lists',key:'name',blank:()=>({id:uid(),name:'',color:PALETTE[S.lists.length%PALETTE.length],cat:'',items:[],created:Date.now()}),
+  fields:[['name','Name','text'],['color','Farbe','color'],['cat','Kategorie','cat']]};
+ui.list=null;
+const listOf=id=>S.lists.find(l=>l.id===id);
+const listProg=l=>({d:arr(l.items).filter(i=>i.d).length,n:arr(l.items).length});
+function makeList(name,items){const l={id:uid(),name,color:PALETTE[S.lists.length%PALETTE.length],cat:'',items:items.map(t=>({id:uid(),t,d:false})),created:Date.now()};S.lists.push(l);return l}
+function seedLists(o){
+  [['Einkaufsliste'],['Haushalt (wöchentlich)'],['Packliste Kurztrip']].forEach(([n],i)=>{const t=TPLS.find(x=>x[0]===n);if(!t)return;
+    o.lists.push({id:uid(),demo:true,name:n,color:PALETTE[(i+3)%PALETTE.length],cat:'',items:t[1].map(x=>({id:uid(),t:x,d:false})),created:Date.now()})});
+}
+function viewLists(){
+  if(ui.list&&listOf(ui.list))return viewList(listOf(ui.list));
+  const l=S.lists.filter(vis);
+  const card=x=>{const p=listProg(x),pc=p.n?Math.round(p.d/p.n*100):0;
+    return `<button class="card trip" style="--c:${esc(x.color)}" data-action="listOpen" data-id="${esc(x.id)}"><div class="tph"><b>${esc(x.name)}</b><span class="pill" style="--c:${esc(x.color)}">${p.d}/${p.n}</span></div><div class="bar"><i style="width:${pc}%"></i></div><small>${esc(arr(x.items).filter(i=>!i.d).slice(0,3).map(i=>i.t).join(' · '))||'Alles erledigt'}</small></button>`};
+  return `<div class="vh"><div><h1>Listen</h1><p>Einkauf, Packlisten, Haushalt. Fertige Listen kannst du frei ändern.</p></div><button class="btn primary" data-action="sheet" data-v="newlist">${ic('plus')}Neue Liste</button></div><div class="tripgrid">${l.map(card).join('')||'<div class="empty" style="grid-column:1/-1">Noch keine Liste.</div>'}</div>`;
+}
+function viewList(l){
+  const p=listProg(l);
+  return `<div class="vh"><div><button class="btn sm ghost" data-action="listBack" style="padding-left:0">${ic('left','style="width:16px;height:16px"')}Alle Listen</button><h1>${esc(l.name)}</h1><p>${p.d} von ${p.n} erledigt</p></div><button class="btn" data-action="openEnt" data-kind="list" data-id="${esc(l.id)}">Bearbeiten</button></div>
+  <div class="card"><div class="bar" style="--c:${esc(l.color)}"><i style="width:${p.n?Math.round(p.d/p.n*100):0}%"></i></div>
+  <div class="addrow"><input class="in" id="li-new" type="text" placeholder="Neuer Punkt" data-enter="listAdd"><button class="btn primary" data-action="listAdd" aria-label="Hinzufügen">${ic('plus','style="width:16px;height:16px"')}</button></div>
+  ${arr(l.items).map(i=>`<div class="pk${i.d?' d':''}"><button class="pkt ckb" data-action="listTick" data-id="${esc(i.id)}" aria-label="Abhaken"><b></b></button><input class="liin" type="text" value="${esc(i.t)}" data-id="${esc(i.id)}" aria-label="Punkt bearbeiten"><button class="eye" data-action="listDel" data-id="${esc(i.id)}" aria-label="Entfernen">✕</button></div>`).join('')||'<div class="empty">Die Liste ist leer.</div>'}
+  <div class="actions" style="justify-content:flex-start;margin-top:10px">${p.d?'<button class="btn sm" data-action="listClean">Erledigte entfernen</button><button class="btn sm" data-action="listReset">Alle zurücksetzen</button>':''}</div></div>`;
+}
+SHEETS.newlist=()=>`<h2>Neue Liste</h2><p class="hint">Wähle eine fertige Liste. Du kannst sie danach beliebig ändern.</p><div class="cats">${TPLS.map((t,i)=>`<button class="catrow" style="--c:var(--accent)" data-action="listFrom" data-ix="${i}"><div class="nm">${esc(t[0])}<small>${t[1].length} Punkte</small></div></button>`).join('')}<button class="catrow off" data-action="listFrom" data-ix="-1"><div class="nm">Leere Liste</div></button></div><div class="actions"><span class="sp"></span><button class="btn primary" data-action="closeSheet">Schließen</button></div>`;
+Object.assign(A,{
+  listOpen(el){ui.list=el.dataset.id;window.scrollTo(0,0);render()},
+  listBack(){ui.list=null;render()},
+  listFrom(el){const i=+el.dataset.ix,l=i<0?makeList('Neue Liste',[]):makeList(TPLS[i][0],TPLS[i][1]);ui.edit=null;persist();renderSheet();ui.view='lists';ui.list=l.id;render();toast('Liste angelegt')},
+  listAdd(){const l=listOf(ui.list),i=$('#li-new'),v=i&&i.value.trim();if(!v)return;l.items.push({id:uid(),t:v,d:false});persist();render();const n=$('#li-new');if(n)n.focus()},
+  listTick(el){const x=arr(listOf(ui.list).items).find(i=>i.id===el.dataset.id);if(x){x.d=!x.d;persist();render()}},
+  listDel(el){const l=listOf(ui.list);l.items=l.items.filter(i=>i.id!==el.dataset.id);persist();render()},
+  listClean(){const l=listOf(ui.list);l.items=l.items.filter(i=>!i.d);persist();render()},
+  listReset(){arr(listOf(ui.list).items).forEach(i=>i.d=false);persist();render()}
+});
+document.addEventListener('change',e=>{const el=e.target;if(el.classList&&el.classList.contains('liin')){const l=listOf(ui.list),x=l&&l.items.find(i=>i.id===el.dataset.id);if(x){const v=el.value.trim();if(v){x.t=v;persist()}else{l.items=l.items.filter(i=>i!==x);persist();render()}}}});
+
+/* ===== Teil 8: Google Kalender (Abgleich in beide Richtungen) ===== */
+const GC=()=>{const s=S.settings;s.gcal=s.gcal||{on:false,cals:{},list:[],push:'',del:false,last:0};return s.gcal};
+let gcalBusy=false,gcalT=null;
+ui.gc={busy:false,msg:''};ui.gs={cal:'',titles:null,events:null,busy:false,msg:''};
+async function gcalCall(tool,input){
+  if(!window.claude||!window.claude.use)throw {code:'unavailable'};
+  const mcp=await window.claude.use('mcp');if(!mcp)throw {code:'unavailable'};
+  return mcp.callTool('Google Calendar',tool,input);
+}
+function gcUnwrap(r){
+  let p=r&&r.payload!==undefined?r.payload:r;
+  if(typeof p==='string'){try{p=JSON.parse(p)}catch(e){}}
+  if(p&&Array.isArray(p.content)){const t=p.content.map(c=>c.text||'').join('');try{p=JSON.parse(t)}catch(e){}}
+  return p&&typeof p==='object'?p:{};
+}
+function gcalErr(e){
+  const c=e&&e.code;
+  if(c==='server_not_connected'||c==='selection_required')return 'Google Kalender ist nicht verbunden. Verbinde ihn in claude.ai unter Einstellungen, Konnektoren.';
+  if(c==='needs_reauth')return 'Die Verbindung zu Google Kalender ist abgelaufen. Verbinde sie in claude.ai neu.';
+  if(['approval_required','not_in_manifest','consent_required','blocked_by_policy'].includes(c))return 'Der Zugriff auf Google Kalender wurde nicht erlaubt.';
+  if(['unavailable','not_granted','capability_disabled','capability_removed'].includes(c))return 'Google Kalender ist in dieser Ansicht nicht verfügbar. Öffne die App direkt in Claude.';
+  if(c==='rate_limited')return 'Zu viele Anfragen. Der nächste Abgleich versucht es erneut.';
+  return 'Google Kalender hat einen Fehler gemeldet.';
+}
+function gcSet(o){Object.assign(ui.gc,o);if(ui.edit&&ui.edit.kind==='gcal')renderSheet()}
+async function gcalLoadList(){
+  const p=gcUnwrap(await gcalCall('list_calendars',{pageSize:250}));
+  const l=arr(p.calendars).map(c=>({id:c.id,name:c.summary||c.id}));
+  if(!l.length)throw {code:'empty'};
+  const g=GC();g.list=l;persist();return l;
+}
+function gcConv(ev){
+  const s=ev.start||{},e=ev.end||{};let date,start='',endT='',end='',allDay=false;
+  if(s.date){allDay=true;date=s.date;const last=e.date?addDays(e.date,-1):date;if(last>date)end=last}
+  else if(s.dateTime){const a=new Date(s.dateTime);if(isNaN(a))return null;date=ymd(a);start=pad(a.getHours())+':'+pad(a.getMinutes());
+    if(e.dateTime){const b=new Date(e.dateTime);if(!isNaN(b))endT=ymd(b)===date?pad(b.getHours())+':'+pad(b.getMinutes()):'23:59'}}
+  else return null;
+  let repeat='none',until='';
+  if(ev.recurrence){const r=arr(ev.recurrence).find(x=>/^RRULE/i.test(x))||'',f=(r.match(/FREQ=(\w+)/)||[])[1],m={DAILY:'daily',WEEKLY:'weekly',MONTHLY:'monthly',YEARLY:'yearly'}[f];
+    if(m){repeat=m;const u=r.match(/UNTIL=(\d{4})(\d{2})(\d{2})/);if(u)until=u[1]+'-'+u[2]+'-'+u[3]}}
+  return {title:ev.summary||'(Ohne Titel)',date,end,start,endT,allDay,repeat,until,place:ev.location||'',note:String(ev.description||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().slice(0,500)};
+}
+const hm60=t=>{const [h,m]=t.split(':').map(Number),x=Math.min(h*60+m+60,23*60+59);return pad(Math.floor(x/60))+':'+pad(x%60)};
+function gcBody(e){
+  const timed=!(e.allDay||!e.start),b={summary:e.title,allDay:!timed,notificationLevel:'NONE'};
+  if(timed){b.startTime=e.date+'T'+e.start+':00';b.endTime=e.date+'T'+(e.endT&&e.endT>e.start?e.endT:hm60(e.start))+':00'}
+  else{b.startTime=e.date+'T00:00:00';b.endTime=addDays(e.end&&e.end>e.date?e.end:e.date,1)+'T00:00:00'}
+  if(e.place)b.location=e.place;if(e.note)b.description=e.note;
+  if(timed&&e.remind!==''&&e.remind!=null)b.overrideReminders=[{method:'popup',minutes:+e.remind}];
+  return b;
+}
+async function gcalFetch(calId,from,to){
+  const out=[];let tok='',complete=true;
+  for(let i=0;i<8;i++){
+    const inp={calendarId:calId,startTime:from+'T00:00:00',endTime:to+'T00:00:00',pageSize:250,orderBy:'startTime'};if(tok)inp.pageToken=tok;
+    const p=gcUnwrap(await gcalCall('list_events',inp));arr(p.events).forEach(e=>out.push(e));tok=p.nextPageToken||'';if(!tok)break;if(i===7)complete=false;
+  }
+  return {out,complete};
+}
+function gcalPending(){const g=GC();return S.events.some(e=>(e.gnew&&!e.demo&&!e.gid)||e.gdirty)||(g.del&&arr(S.gdel).some(x=>!x.done))}
+function gcalSoon(){const g=S.settings.gcal;if(!g||!g.on||gcalBusy||!g.push&&!gcalHasRw())return;if(!gcalPending())return;clearTimeout(gcalT);gcalT=setTimeout(()=>gcalSync(),6000)}
+function gcalHasRw(){return Object.values(GC().cals).some(c=>c.mode==='rw')}
+function gcalStatusText(){const g=GC();return g.last?'Zuletzt abgeglichen: '+new Intl.DateTimeFormat('de-DE',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}).format(new Date(g.last)):'Noch nicht abgeglichen'}
+async function gcalSync(manual){
+  const g=GC();if(!g.on&&!manual)return;if(gcalBusy)return;
+  const cals=Object.entries(g.cals).filter(([,c])=>c.mode==='read'||c.mode==='rw');
+  if(!cals.length&&!g.push){if(manual)gcSet({msg:'Wähle zuerst mindestens einen Kalender.'});return}
+  gcalBusy=true;if(manual)gcSet({busy:true,msg:'Gleiche ab …'});
+  const st={pulled:0,pushed:0,removed:0,deleted:0,err:''};
+  try{
+    S.gdel=arr(S.gdel);
+    const rw=id=>(g.cals[id]||{}).mode==='rw';
+    /* 1) App -> Google */
+    if(g.push){
+      for(const e of S.events.filter(x=>x.gnew&&!x.gid&&!x.demo&&x.date>=addDays(today(),-1))){
+        const b=gcBody(e);b.calendarId=g.push;
+        if(e.repeat&&e.repeat!=='none')b.recurrenceData=['RRULE:FREQ='+e.repeat.toUpperCase()+(e.until?';UNTIL='+d8(e.until)+(b.allDay?'':'T235959Z'):'')];
+        try{const p=gcUnwrap(await gcalCall('create_event',b));const id=p.id||(p.event&&p.event.id)||p.eventId;
+          e.gnew=false;if(id){e.gid=id;e.gcal=g.push;e.gdirty=false;e.gupd='';e.gat=Date.now()}else e.gunk=true;st.pushed++}
+        catch(er){st.err=gcalErr(er);break}
+      }
+    }
+    for(const e of S.events.filter(x=>x.gid&&x.gdirty&&rw(x.gcal))){
+      const b=gcBody(e);b.calendarId=e.gcal;b.eventId=e.gid;
+      try{await gcalCall('update_event',b);e.gdirty=false;e.gupd='';st.pushed++}catch(er){st.err=gcalErr(er);break}
+    }
+    if(g.del){
+      for(const x of S.gdel.filter(y=>!y.done&&rw(y.cal))){
+        try{await gcalCall('delete_event',{calendarId:x.cal,eventId:x.gid,notificationLevel:'NONE'});x.done=true;st.deleted++}catch(er){if(/not.?found|gone|410|404/i.test(String(er&&er.message||er&&er.code)))x.done=true;else{st.err=gcalErr(er);break}}
+      }
+    }
+    /* 2) Google -> App */
+    const from=addDays(today(),-14),to=addDays(today(),150);
+    const ign=new Set(S.gdel.map(x=>x.cal+'|'+x.gid));
+    for(const [calId,c] of cals){
+      let r;try{r=await gcalFetch(calId,from,to)}catch(er){st.err=gcalErr(er);continue}
+      const seen=new Set(),masters=S.events.filter(x=>x.gid&&x.gcal===calId&&x.repeat&&x.repeat!=='none');
+      r.out.forEach(ev=>{
+        if(!ev.id||ev.status==='cancelled')return;seen.add(ev.id);
+        if(ign.has(calId+'|'+ev.id))return;
+        if(ev.recurringEventId&&S.events.some(x=>x.gid===ev.recurringEventId&&x.gcal===calId))return;
+        if(masters.some(m=>ev.id.startsWith(m.gid+'_')))return;
+        const v=gcConv(ev);if(!v)return;
+        const loc=S.events.find(x=>x.gid===ev.id&&x.gcal===calId),upd=ev.updated||'';
+        if(!loc){S.events.push(Object.assign({id:uid(),gid:ev.id,gcal:calId,gupd:upd,cat:c.cat||'',tags:[],remind:''},v));st.pulled++}
+        else if(!(loc.gdirty&&c.mode==='rw')&&loc.gupd!==upd){const keep={cat:loc.cat,tags:loc.tags,remind:loc.remind};Object.assign(loc,v,keep,{gupd:upd});st.pulled++}
+      });
+      if(r.complete){
+        const gone=S.events.filter(x=>x.gid&&x.gcal===calId&&!seen.has(x.gid)&&x.date>=from&&x.date<=to&&(!x.repeat||x.repeat==='none')&&!x.gdirty&&!x.gunk&&!(x.gat&&Date.now()-x.gat<6e5));
+        gone.forEach(x=>{trashIt('event',x);S.events=S.events.filter(y=>y!==x);st.removed++});
+      }
+    }
+    S.gdel=S.gdel.filter(x=>!x.done).slice(-500);
+    g.last=Date.now();persist();render();
+  }catch(er){st.err=gcalErr(er)}
+  gcalBusy=false;
+  const parts=[];if(st.pulled)parts.push(st.pulled+' von Google übernommen');if(st.pushed)parts.push(st.pushed+' an Google gesendet');if(st.removed)parts.push(st.removed+' in Google gelöschte entfernt');if(st.deleted)parts.push(st.deleted+' in Google gelöscht');
+  const msg=st.err?st.err+(parts.length?' ('+parts.join(', ')+')':''):(parts.length?parts.join(', ')+'.':'Alles auf dem neuesten Stand.');
+  if(manual||st.err)gcSet({busy:false,msg});else gcSet({busy:false,msg:''});
+  const n=$('#gcstat');if(n)n.textContent=gcalStatusText();
+  return st;
+}
+SHEETS.gcal=()=>{
+  const g=GC(),gc=ui.gc,list=g.list||[],writable=list;
+  const catOpts=cur=>'<option value="">Ohne Kategorie</option>'+S.cats.map(c=>`<option value="${esc(c.id)}"${c.id===cur?' selected':''}>${esc(c.name)}</option>`).join('');
+  return `<h2>Google Kalender</h2>
+  <p class="hint">Verbinde deinen eigenen Google-Kalender. Die Daten bleiben in deinem Konto: Wer den Link zur App bekommt, sieht deine Termine nicht und muss sich selbst verbinden.</p>
+  <div class="actions" style="justify-content:flex-start"><button type="button" class="btn primary" data-action="gcalList"${gc.busy?' disabled':''}>${list.length?'Kalenderliste neu laden':'Mit Google Kalender verbinden'}</button></div>
+  ${list.length?`<div class="daylbl">Kalender abgleichen</div><div class="cats">${list.map(c=>{const x=g.cals[c.id]||{mode:'off'};return `<div class="catrow${x.mode==='off'?' off':''}" style="--c:var(--accent);flex-wrap:wrap"><div class="nm" style="min-width:140px">${esc(c.name)}</div><select class="in" style="width:auto;flex:none" data-gmode="${esc(c.id)}" aria-label="Modus ${esc(c.name)}"><option value="off"${x.mode==='off'?' selected':''}>Aus</option><option value="read"${x.mode==='read'?' selected':''}>Nur lesen</option><option value="rw"${x.mode==='rw'?' selected':''}>Lesen und schreiben</option></select>${x.mode!=='off'?`<select class="in" style="width:auto;flex:none" data-gcat="${esc(c.id)}" aria-label="Kategorie ${esc(c.name)}">${catOpts(x.cat)}</select>`:''}</div>`}).join('')}</div>
+  <div class="fld" style="margin-top:12px"><label for="gc-push">Neue Termine aus der App senden an</label><select id="gc-push"><option value="">Nicht senden</option>${writable.map(c=>`<option value="${esc(c.id)}"${g.push===c.id?' selected':''}>${esc(c.name)}</option>`).join('')}</select></div>
+  <label class="chk"><input id="gc-del" type="checkbox"${g.del?' checked':''}>Löschen in der App auch in Google löschen (nur Kalender mit „Lesen und schreiben“)</label>
+  <label class="chk"><input id="gc-on" type="checkbox"${g.on?' checked':''}>Automatisch abgleichen (beim Öffnen und alle 5 Minuten)</label>
+  <div class="actions" style="justify-content:flex-start"><button type="button" class="btn primary" data-action="gcalNow"${gc.busy?' disabled':''}>Jetzt abgleichen</button><button type="button" class="btn danger" data-action="gcalClear">Importierte Termine entfernen</button></div>
+  <p class="hint" id="gcstat" style="margin-top:8px">${esc(gcalStatusText())}</p>`:''}
+  ${gc.msg?`<p style="font-weight:700;margin:8px 0">${esc(gc.msg)}</p>`:''}
+  <p class="hint">Der Abgleich läuft nur, solange die App geöffnet ist. Wiederholungen werden beim Anlegen gesendet, spätere Änderungen daran nicht. In „Nur lesen“-Kalendern überschreibt Google deine Änderungen in der App.</p>
+  <div class="actions"><span class="sp"></span><button type="button" class="btn primary" data-action="closeSheet">Schließen</button></div>`;
+};
+Object.assign(A,{
+  gcalOpen(){ui.edit={kind:'gcal',draft:{}};ui.gc.msg='';renderSheet()},
+  async gcalList(){gcSet({busy:true,msg:'Lade Kalender …'});try{const l=await gcalLoadList();gcSet({busy:false,msg:l.length+' Kalender gefunden. Wähle aus, was abgeglichen werden soll.'})}catch(e){gcSet({busy:false,msg:e&&e.code==='empty'?'Es wurden keine Kalender gefunden.':gcalErr(e)})}},
+  gcalNow(){gcalSync(true)},
+  gcalClear(){const n=S.events.filter(e=>e.gid&&!e.gnew).length;S.events.filter(e=>e.gid).forEach(e=>trashIt('event',e));S.events=S.events.filter(e=>!e.gid);persist();render();gcSet({msg:n+' importierte Termine entfernt (im Papierkorb). In Google bleibt alles unverändert.'})}
+});
+document.addEventListener('change',e=>{
+  const el=e.target,d=el.dataset||{},g=S&&S.settings&&S.settings.gcal;
+  if(d.gmode!==undefined){const G=GC();G.cals[d.gmode]=Object.assign({mode:'off',cat:''},G.cals[d.gmode],{mode:el.value});if(el.value==='off'&&G.push===d.gmode)G.push='';persist();renderSheet()}
+  else if(d.gcat!==undefined){const G=GC();G.cals[d.gcat]=Object.assign({mode:'read'},G.cals[d.gcat],{cat:el.value});persist()}
+  else if(el.id==='gc-push'){GC().push=el.value;S.events.forEach(x=>{if(!x.gid)x.gnew=false});persist()}
+  else if(el.id==='gc-del'){GC().del=el.checked;persist()}
+  else if(el.id==='gc-on'){GC().on=el.checked;persist();if(el.checked)gcalSync(true)}
+});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&S&&S.settings.gcal&&S.settings.gcal.on)gcalSync()});
+setInterval(()=>{if(!document.hidden&&S&&S.settings.gcal&&S.settings.gcal.on)gcalSync()},300000);
+setTimeout(()=>{if(S&&S.settings.gcal&&S.settings.gcal.on)gcalSync()},8000);
+
+/* ---- Dienste aus Google Kalender (z. B. „Dienstplan“) ---- */
+const _shImport=SHEETS.shiftimport;
+SHEETS.shiftimport=e=>{
+  const html=_shImport(e),g=GC(),s=ui.gs,i=html.lastIndexOf('<div class="actions"><span class="sp">');
+  const sec=`<hr><div class="fld"><label for="gs-cal">4. Google Kalender (z. B. dein Dienstplan-Kalender)</label>${(g.list||[]).length?`<select id="gs-cal"><option value="">Kalender wählen …</option>${g.list.map(c=>`<option value="${esc(c.id)}"${s.cal===c.id?' selected':''}>${esc(c.name)}</option>`).join('')}</select>`:'<p class="hint" style="margin:0">Lade zuerst deine Kalenderliste.</p>'}</div>
+  <div class="actions" style="justify-content:flex-start"><button type="button" class="btn" data-action="gsLoad"${s.busy?' disabled':''}>${(g.list||[]).length?'Dienste suchen':'Kalender laden'}</button></div>
+  ${s.msg?`<p style="font-weight:700;margin:6px 0">${esc(s.msg)}</p>`:''}
+  ${s.titles?`<div class="cats">${s.titles.map((t,ix)=>`<label class="catrow" style="--c:var(--accent)"><input type="checkbox" data-gstitle="${ix}"${t.on?' checked':''} style="width:20px;height:20px;accent-color:var(--accent)"><div class="nm">${esc(t.name)}<small>${t.count}× · ${esc(t.time||'ganztägig')}</small></div></label>`).join('')}</div><div class="actions"><button type="button" class="btn primary" data-action="gsApply">Auswahl als Dienste übernehmen</button></div><p class="hint">Hake nur echte Dienste an, keine privaten Termine.</p>`:''}`;
+  return html.slice(0,i)+sec+html.slice(i);
+};
+function gsSet(o){Object.assign(ui.gs,o);if(ui.edit&&ui.edit.kind==='shiftimport')renderSheet()}
+A.gsLoad=async()=>{
+  const g=GC();
+  try{
+    if(!(g.list||[]).length){gsSet({busy:true,msg:'Lade Kalender …'});await gcalLoadList();gsSet({busy:false,msg:'Wähle jetzt den Kalender mit deinen Diensten.'});return}
+    const sel=$('#gs-cal');ui.gs.cal=sel?sel.value:'';if(!ui.gs.cal){gsSet({msg:'Bitte einen Kalender wählen.'});return}
+    gsSet({busy:true,msg:'Suche Dienste …',titles:null});
+    const r=await gcalFetch(ui.gs.cal,addDays(today(),-30),addDays(today(),120)),by={},evs=[];
+    r.out.forEach(ev=>{if(ev.status==='cancelled')return;const v=gcConv(ev);if(!v)return;evs.push(v);const k=v.title.trim().toLowerCase();by[k]=by[k]||{name:v.title.trim(),count:0,time:v.allDay?'':v.start+(v.endT?'–'+v.endT:''),on:false,key:k};by[k].count++});
+    const titles=Object.values(by).sort((a,b)=>b.count-a.count);
+    gsSet({busy:false,events:evs,titles,msg:titles.length?titles.length+' verschiedene Titel gefunden.':'Keine Termine in diesem Zeitraum.'});
+  }catch(e){gsSet({busy:false,msg:gcalErr(e)})}
+};
+A.gsApply=()=>{
+  const on=new Set((ui.gs.titles||[]).filter(t=>t.on).map(t=>t.key));if(!on.size){gsSet({msg:'Bitte mindestens einen Titel anhaken.'});return}
+  const list=[];(ui.gs.events||[]).forEach(v=>{if(on.has(v.title.trim().toLowerCase())){list.push({date:v.date,name:v.title.trim(),start:v.allDay?'':v.start,end:v.allDay?'':v.endT});if(v.end)for(let d=addDays(v.date,1);d<=v.end;d=addDays(d,1))list.push({date:d,name:v.title.trim(),start:'',end:''})}});
+  const r=applyShiftImport(list);gsSet({msg:r.n+' Dienste übernommen'+(r.newT?' ('+r.newT+' neue Diensttypen)':'')+'.',titles:null});render();
+};
+document.addEventListener('change',e=>{const el=e.target;if(el.dataset&&el.dataset.gstitle!==undefined&&ui.gs.titles)ui.gs.titles[+el.dataset.gstitle].on=el.checked;if(el.id==='gs-cal')ui.gs.cal=el.value});
+
 /* ===== Teil 6: Verdrahtung ===== */
-const VIEWS={today:viewToday,notes:viewNotes,tasks:viewTasks,cal:viewCal,cats:viewCats,more:viewMore,settings:viewSettings,habits:viewHabits,shifts:viewShifts,trips:viewTrips,people:viewPeople,money:viewMoney,docs:viewDocs,journal:viewJournal,focus:viewFocus,review:viewReview};
+const VIEWS={today:viewToday,notes:viewNotes,tasks:viewTasks,cal:viewCal,cats:viewCats,more:viewMore,settings:viewSettings,habits:viewHabits,shifts:viewShifts,trips:viewTrips,lists:viewLists,people:viewPeople,money:viewMoney,docs:viewDocs,journal:viewJournal,focus:viewFocus,review:viewReview};
 const AFTER={};
 Object.keys(ENT).forEach(k=>{SHEETS[k]=entSheet;FORMS[k]=entRead;SAVES[k]=entSave});
 document.addEventListener('change',e=>{const el=e.target;if(el.dataset&&el.dataset.action==='magicTick')A.magicTick(el)});
